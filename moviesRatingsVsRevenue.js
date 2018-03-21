@@ -1,3 +1,9 @@
+/*
+Anish Shenoy and Khyber Sen
+SoftDev2 pd07
+K13 -- Scattered
+2017-03-20
+*/
 Object.defineProperties(Object, {
     
     defineSharedProperties: {
