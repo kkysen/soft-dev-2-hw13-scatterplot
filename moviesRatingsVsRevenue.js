@@ -49,7 +49,8 @@ Object.defineSharedProperties(String.prototype, {
     
 });
 
-(function scatterPlot() {
+(function moviesRatingsVsRevenue() {
+    "use strict";
     
     const dataUrl = "https://www.kaggle.com/rounakbanik/the-movies-dataset/downloads/movies_metadata.csv/7";
     
@@ -70,9 +71,10 @@ Object.defineSharedProperties(String.prototype, {
     
     const initAxis = function(axis) {
         axis.value = movie => movie[axis.name];
-        axis.scale = d3.scaleLinear().range(axis.range);
-        axis.map = movie => axis.scale(axis.value(movie));
-        axis.axis = d3["axis" + axis.orientation.capitalize()]().scale(axis.scale);
+        axis.axisScale = d3.scaleLinear().range(axis.axisRange);
+        axis.pointsScale = d3.scaleLinear().range(axis.pointsRange);
+        axis.map = movie => axis.pointsScale(axis.value(movie));
+        axis.axis = d3["axis" + axis.orientation.capitalize()]().scale(axis.axisScale);
         axis.transform = "translate(" + margins.left + "," + axis.yTranslate + ")";
     };
     
@@ -80,7 +82,8 @@ Object.defineSharedProperties(String.prototype, {
         x: {
             name: "rating",
             officialName: "Rating",
-            range: [0, size.width],
+            axisRange: [0, size.width],
+            pointsRange: [margins.left, size.width + margins.right],
             orientation: "bottom",
             yTranslate: size.height,
             textAttrs: {
@@ -91,7 +94,8 @@ Object.defineSharedProperties(String.prototype, {
         y: {
             name: "revenue",
             officialName: "Revenue",
-            range: [size.height, 0],
+            axisRange: [size.height, 0],
+            pointsRange: [size.height, 0],
             orientation: "left",
             yTranslate: 0,
             textAttrs: {
@@ -101,8 +105,8 @@ Object.defineSharedProperties(String.prototype, {
             },
         },
     };
-    window.axes = axes;
     Object.values(axes).forEach(initAxis);
+    window.axes = axes;
     
     const body = d3.select(document.body);
     
@@ -118,75 +122,106 @@ Object.defineSharedProperties(String.prototype, {
         .append("div")
         .classed("tooltip", true)
         .style("opacity", 0);
+    tooltip.fade = function(duration, newOpacity) {
+        tooltip.transition()
+            .duration(duration)
+            .styles({opacity: newOpacity});
+    };
     
-    d3.csv("movies.csv")
-        .then(rawMovies => {
-            
-            // TODO uncomment for testing so not so many movies
-            // rawMovies.splice(10);
-            
-            const movies = rawMovies
-                .map(movie => ({
-                    rawMovies: movie,
-                    name: movie.title,
-                    rating: parseFloat(movie.vote_average),
-                    numRatings: parseInt(movie.vote_count),
-                    revenue: parseInt(movie.revenue),
-                }))
-                .filter(movie => movie.numRatings >= 15);
-            window.movies = movies;
-            
-            Object.entries(axes).forEach(entry => {
-                const [xy, axis] = entry;
-                axis.scale.domain([d3.min(movies, axis.value), d3.max(movies, axis.value)]);
-                
-                svg.append("g")
-                    .attrs({
-                        class: xy + " axis",
-                        transform: axis.transform,
-                    })
-                    .call(axis.axis);
-                
-                svg.append("text")
-                    .attrs(Object.assign({class: "label"}, axis.textAttrs))
-                    .styles({"text-anchor": "end"})
-                    .text(axis.officialName);
-            });
-            
-            svg.selectAll(".dot")
-                .data(movies)
-                .enter()
-                .append("circle")
-                .attrs(movie => ({
-                    class: "dot",
-                    r: 3.5,
-                    cx: axes.x.map(movie),
-                    cy: axes.y.map(movie),
-                }))
-                .styles({fill: "black"})
-                .on("mouseover", movie => {
-                    tooltip.transition()
-                        .duration(200)
-                        .styles({opacity: 0.9});
-                    const html = Object.entries({
-                            Movie: movie.name,
-                            Rating: movie.rating,
-                            Revenue: movie.revenue,
-                            "Number of Ratings": movie.numRatings,
-                        })
-                        .map(entries => entries.join(": "))
-                        .join("<br>");
-                    tooltip.html(html)
-                        .styles({
-                            left: (d3.event.pageX + 5) + "px",
-                            top: (d3.event.pageY - 28) + "px",
-                        });
-                })
-                .on("mouseout", () => {
-                    tooltip.transition()
-                        .duration(500)
-                        .styles({opacity: 0});
-                });
+    const preProcessMovies = function(movies) {
+        return movies
+            .map(movie => ({
+                rawMovies: movie,
+                name: movie.title,
+                rating: parseFloat(movie.vote_average),
+                numRatings: parseInt(movie.vote_count),
+                revenue: parseInt(movie.revenue),
+            }))
+            .filter(movie => movie.numRatings >= 15);
+    };
+    
+    const setupAxis = function(xy, axis, movies) {
+        const pointsDomain = [d3.min(movies, axis.value), d3.max(movies, axis.value)];
+        const axisDomain = [pointsDomain[0], pointsDomain[1] * 10 / 9.5];
+        console.log(xy, pointsDomain, axisDomain, axis);
+        axis.axisScale.domain(axisDomain);
+        axis.pointsScale.domain(pointsDomain);
+        
+        svg.append("g")
+            .attrs({
+                class: xy + " axis",
+                transform: axis.transform,
+            })
+            .call(axis.axis);
+        
+        svg.append("text")
+            .attrs(Object.assign({class: "label"}, axis.textAttrs))
+            .styles({"text-anchor": "end"})
+            .text(axis.officialName);
+    };
+    
+    const setupAxes = function(movies) {
+        Object.entries(axes).forEach(entry => {
+            const [xy, axis] = entry;
+            setupAxis(xy, axis, movies);
         });
+        return movies;
+    };
+    
+    const showMovieInfo = function(movie) {
+        tooltip.fade(200, 0.9);
+        const html = Object.entries({
+                Movie: movie.name,
+                Rating: movie.rating,
+                Revenue: movie.revenue,
+                "Number of Ratings": movie.numRatings,
+            })
+            .map(entries => entries.join(": "))
+            .join("<br>");
+        tooltip.html(html)
+            .styles({
+                left: (d3.event.pageX + 5) + "px",
+                top: (d3.event.pageY - 28) + "px",
+            });
+    };
+    
+    const plotMovies = function(movies) {
+        svg.selectAll(".dot")
+            .data(movies)
+            .enter()
+            .append("circle")
+            .attrs({
+                class: "dot",
+                r: 3.5,
+                cx: axes.x.map,
+                cy: axes.y.map,
+            })
+            .styles({fill: "black"})
+            .on("mouseover", showMovieInfo)
+            .on("mouseout", tooltip.fade.bind(tooltip, 500, 0.9));
+    };
+    
+    const addTitle = function() {
+        const title = body.append("center");
+        title.append("h2")
+            .text(document.title);
+        title.node().remove();
+        body.node().prepend(title.node());
+    };
+    
+    const citeSource = function() {
+        body.append("p")
+            .html("Source: <a href=" + dataUrl + ">" + dataUrl + "</a>");
+    };
+    
+    d3.csv("movies.csv", {mode: "same-origin"})
+        .then(movies => movies.slice(0, /*10*/movies.length))
+        .then(preProcessMovies)
+        .then(movies => window.movies = movies)
+        .then(setupAxes)
+        .then(plotMovies);
+    
+    addTitle();
+    citeSource();
     
 })();
