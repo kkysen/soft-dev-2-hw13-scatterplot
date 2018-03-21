@@ -4,6 +4,7 @@ SoftDev2 pd07
 K13 -- Scattered
 2017-03-20
 */
+
 Object.defineProperties(Object, {
     
     defineSharedProperties: {
@@ -226,7 +227,7 @@ Object.defineSharedProperties(String.prototype, {
             alert([
                 "If you are running from a file:// URI in Chrome, this will not work.",
                 "Please use Firefox or another browser that correctly implements the same-origin policy for file:// URIs,",
-                "or run this html file from a simple web server.",
+                "or run this html file from a simple web server (`python3 -m http.server`).",
                 "\n\n" + reason,
             ].join(" "));
         })
