@@ -215,6 +215,15 @@ Object.defineSharedProperties(String.prototype, {
     };
     
     d3.csv("movies.csv", {mode: "same-origin"})
+        .catch(reason => {
+            console.log(reason);
+            alert([
+                "If you are running from a file:// URI in Chrome, this will not work.",
+                "Please use Firefox or another browser that correctly implements the same-origin policy for file:// URIs,",
+                "or run this html file from a simple web server.",
+                "\n\n" + reason,
+            ].join(" "));
+        })
         .then(movies => movies.slice(0, /*10*/movies.length))
         .then(preProcessMovies)
         .then(movies => window.movies = movies)
