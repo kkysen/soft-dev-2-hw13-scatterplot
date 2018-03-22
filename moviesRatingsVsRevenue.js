@@ -24,26 +24,6 @@ Object.defineProperties(Object, {
     
 });
 
-Object.defineSharedProperties(Object.prototype, {
-    writable: false,
-    enumerable: false,
-    configurable: false,
-}, {
-    
-    freeze() {
-        return Object.freeze(this);
-    },
-    
-    seal() {
-        return Object.seal(this);
-    },
-    
-    _clone() {
-        return Object.assign({}, this);
-    },
-    
-});
-
 Object.defineSharedProperties(String.prototype, {
     writable: false,
     enumerable: false,
@@ -62,13 +42,13 @@ Object.defineSharedProperties(String.prototype, {
     const dataUrl = "https://www.kaggle.com/rounakbanik/the-movies-dataset/downloads/movies_metadata.csv/7";
     
     const absSize = {
-        width: window.innerWidth * .9,
-        height: window.innerHeight * .9,
+        width: window.innerWidth * .8,
+        height: window.innerHeight * .7,
     };
     const margins = {
         top: 20,
         bottom: 20 * 2,
-        left: 40 * 2,
+        left: 40 * 3,
         right: 20,
     };
     const size = {
@@ -88,19 +68,19 @@ Object.defineSharedProperties(String.prototype, {
     const axes = {
         x: {
             name: "rating",
-            officialName: "Rating",
+            officialName: "Rating (out of 10)",
             axisRange: [0, size.width],
             pointsRange: [margins.left, size.width + margins.right],
             orientation: "bottom",
             yTranslate: size.height,
             textAttrs: {
-                x: size.width / 2,
+                x: size.width / 2 + margins.left,
                 y: size.height + margins.bottom - 5,
             },
         },
         y: {
             name: "revenue",
-            officialName: "Revenue",
+            officialName: "Revenue (USD)",
             axisRange: [size.height, 0],
             pointsRange: [size.height, 0],
             orientation: "left",
@@ -128,7 +108,7 @@ Object.defineSharedProperties(String.prototype, {
     const tooltip = body
         .append("div")
         .classed("tooltip", true)
-        .style("opacity", 0);
+        .styles({opacity: 0});
     tooltip.fade = function(duration, newOpacity) {
         // console.log("fading");
         tooltip.transition()
@@ -163,7 +143,8 @@ Object.defineSharedProperties(String.prototype, {
             .call(axis.axis);
         
         svg.append("text")
-            .attrs(Object.assign({class: "label"}, axis.textAttrs))
+            .classed("label", true)
+            .attrs(axis.textAttrs)
             .styles({"text-anchor": "end"})
             .text(axis.officialName);
     };
@@ -177,12 +158,12 @@ Object.defineSharedProperties(String.prototype, {
     };
     
     const showMovieInfo = function(movie) {
-        tooltip.fade(200, 0.9);
+        tooltip.fade(200, 1);
         const html = Object.entries({
                 Movie: movie.name,
                 Rating: movie.rating,
-                Revenue: movie.revenue,
-                "Number of Ratings": movie.numRatings,
+                Revenue: movie.revenue.toLocaleString(),
+                "Number of Ratings": movie.numRatings.toLocaleString(),
             })
             .map(entries => entries.join(": "))
             .join("<br>");
