@@ -130,6 +130,7 @@ Object.defineSharedProperties(String.prototype, {
         .classed("tooltip", true)
         .style("opacity", 0);
     tooltip.fade = function(duration, newOpacity) {
+        // console.log("fading");
         tooltip.transition()
             .duration(duration)
             .styles({opacity: newOpacity});
@@ -205,7 +206,7 @@ Object.defineSharedProperties(String.prototype, {
             })
             .styles({fill: "black"})
             .on("mouseover", showMovieInfo)
-            .on("mouseout", tooltip.fade.bind(tooltip, 500, 0.9));
+            .on("mouseout", tooltip.fade.bind(tooltip, 500, 0));
     };
     
     const addTitle = function() {
@@ -221,7 +222,46 @@ Object.defineSharedProperties(String.prototype, {
             .html("Source: <a href=" + dataUrl + ">" + dataUrl + "</a>");
     };
     
-    d3.csv("movies.csv", {mode: "same-origin"})
+    const movies = (function() {
+        
+        const isChrome = function() {
+            return /Google Inc/.test(navigator.vendor);
+        };
+        
+        const allowsFetches = !window.location.href.startsWith("file://") || !isChrome();
+        console.log(allowsFetches);
+        
+        const loadScriptFetch = function() {
+            const script = document.createElement("script");
+            script.src = "moviesCsvData.js";
+            return new Promise((resolve, reject) => {
+                script.onload = () => {
+                    console.log(moviesCsvData.length);
+                    resolve(d3.csvParse(moviesCsvData));
+                };
+                script.onerror = () => reject("Failed to load " + script.src);
+                document.head.appendChild(script);
+            });
+        };
+        
+        const sameOriginFetch = function() {
+            return new Promise(resolve => {
+                d3.csv("movies.csv", {mode: "same-origin"})
+                    .catch(reason => {
+                        console.log(reason);
+                        return resolve(loadScriptFetch());
+                    }) // fail safe
+                    .then(resolve);
+            });
+        };
+        
+        return {
+            fetch: allowsFetches ? sameOriginFetch : loadScriptFetch,
+        };
+        
+    })();
+    
+    movies.fetch()
         .catch(reason => {
             console.log(reason);
             alert([
